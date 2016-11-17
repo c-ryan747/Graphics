@@ -19,7 +19,7 @@ public class Scene {
         SceneObject closest = null;
         IntersectionPoint point = null;
 
-        // Loop through all scene objects, pick the closest that intersects
+        // Find the closest intersecting object
         for (SceneObject sceneObject : sceneObjects) {
             IntersectionPoint intersectionPoint = sceneObject.intersectsRayAtPoint(ray);
             if (intersectionPoint != null && (point == null || intersectionPoint.distanceAlongRay < point.distanceAlongRay)) {
@@ -32,27 +32,24 @@ public class Scene {
     }
 
     private Color colourForObject(SceneObject sceneObject, IntersectionPoint point) {
-        // General lighting calculations
-        double illumination = getGenericIllumination(sceneObject, point, point.ray);
+        double intensity = getIntensity(sceneObject, point);
 
-        // Set each component
         Color objectsBaseColour = sceneObject.getColor();
-        Double intensityR = objectsBaseColour.getRed() * illumination;
-        Double intensityG = objectsBaseColour.getGreen() * illumination;
-        Double intensityB = objectsBaseColour.getBlue() * illumination;
+        Double intensityR = objectsBaseColour.getRed() * intensity;
+        Double intensityG = objectsBaseColour.getGreen() * intensity;
+        Double intensityB = objectsBaseColour.getBlue() * intensity;
 
-        // Scale the intensity values to be in range 0 - 255
-        double scale = Math.max(Math.max(Math.max(MAX_INTENSITY, intensityR), intensityG), intensityB);
-        intensityR /= scale;
-        intensityG /= scale;
-        intensityB /= scale;
+        // Get the values in range (0 - 255)
+        double maxIndividual = Math.max(Math.max(Math.max(MAX_INTENSITY, intensityR), intensityG), intensityB);
+        intensityR *= 255.0 / maxIndividual;
+        intensityG *= 255.0 / maxIndividual;
+        intensityB *= 255.0 / maxIndividual;
 
         return new Color(intensityR.intValue(), intensityG.intValue(), intensityB.intValue());
     }
 
-    // Calculates this points ambient, diffuse and specular lighting components
-    private double getGenericIllumination(SceneObject sceneObject, IntersectionPoint point, Ray ray) {
-        Double intensity = 0.0;
+    private double getIntensity(SceneObject sceneObject, IntersectionPoint point) {
+        double intensity = 0;
 
         // Ambient illumination
         if (ambientLightOn) {
@@ -68,17 +65,17 @@ public class Scene {
             Vector3 L = light.getPos().minus(sceneObject.getPos()).normalise();
             double cosTheta = N.dot(L);
 
-            // If not lighting from behind
+            // Check it's being lit from the front
             if (cosTheta > 0) {
                 intensity += Ilight * cosTheta;
             }
 
             // Specular
             Vector3 R = L.minus(N.scale(2 * L.dot(N)));
-            Vector3 V = ray.getOrigin().minus(point.point).scale(-1).normalise();
+            Vector3 V = point.ray.getOrigin().minus(point.point).scale(-1).normalise();
             double rDotV = R.dot(V);
 
-            // If not lighting from behind
+            // Check it's being lit from the front
             if (rDotV > 0) {
                 intensity += Ilight * Math.pow(rDotV, sceneObject.getPhongRoughness());
             }
@@ -86,6 +83,7 @@ public class Scene {
 
         return intensity;
     }
+
 
     public void addSceneObject(SceneObject sceneObject) {
         sceneObjects.add(sceneObject);
